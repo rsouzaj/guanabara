@@ -1,0 +1,324 @@
+---
+title: "Conhecendo o(a) Guanabarina(o)"
+author: "Centro Excursionista Guanabara"
+format: pdf
+editor: visual
+---
+
+## Perfil dos respondentes do CEG
+
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+library(tidyverse)
+
+df <- read.delim("Conhecendo o(a) Guanabarino(a)  (respostas) - Respostas ao formulário 1.tsv")
+
+
+```
+
+## Características gerais:
+
+
+
+```{r}
+#| echo: false
+
+df_fim <-  df |>
+    rename(
+      n_frequenta = `Se.não.frequenta..qual.o.motivo.`,
+      frequencia = Frequenta.a.sede.do.CEG.com.que.frequência.
+    ) |>
+  mutate(
+    Idade = case_when(
+      Qual.sua.idade. >= 30 & Qual.sua.idade.< 40 ~ 'Entre 30 e 39 anos',
+      Qual.sua.idade. >= 40 & Qual.sua.idade.< 50 ~ 'Entre 40 e 49 anos',
+      Qual.sua.idade. >= 50 & Qual.sua.idade. < 60 ~'Entre 50 e 59 anos',
+      Qual.sua.idade.>= 60 ~ 'Mais de 60 anos'
+    ),
+    Trabalho = if_else(str_detect(n_frequenta, "Trabalho"), 1, 0),
+    Frequência = case_when(
+     frequencia == 'Menos de 1 vez por mês' ~'Menos de 1 vez por mês',
+     frequencia == 'Duas vezes ou mais por mês' ~ 'Duas vezes ou mais por mês',
+     frequencia == 'Uma vez por mês' ~ 'Uma vez por mês',
+     frequencia == 'Não frequento há mais de 6 meses' ~ 'Não frequento há mais de 6 meses'
+    ),
+    Frequência = if_else( str_detect(frequencia, 'Sempre|Uma vez por semana') , 'Duas vezes ou mais por mês', frequencia),
+    Frequência = if_else( str_detect(frequencia, 'às vezes|apenas 2 vezes|Depende') , 'Menos de 1 vez por mês', Frequência),
+    Frequência = fct_relevel(Frequência,
+      c('Duas vezes ou mais por mês', 'Uma vez por mês','Menos de 1 vez por mês', 'Não frequento há mais de 6 meses'
+    )),
+    `Tempo de clube` = fct_relevel(Há.quantos.anos.ingressou.no.clube.,
+      c('< 2 anos', 'Entre 2 e 5 anos','Entre 5 e 10 anos', 'Entre 10 e 20 anos',
+      '> 20 anos'
+    )),
+    `CBM` = fct_relevel(Você.fez.CBM,
+                        c('No CEG', 'Em outro clube', 'Não fiz CBM')),
+    identificacao = if_else(str_detect(
+      Dentro.do.montanhismo.com.o.que.você.mais.se.identifica., 'trilha leve'), 'Trilhas leves', Dentro.do.montanhismo.com.o.que.você.mais.se.identifica.),
+    identificacao = if_else(str_detect(
+      identificacao, 'urbana') & str_detect(identificacao, 'remota'), 'Escalada urbana e remota', identificacao),
+    identificacao = if_else(str_detect(
+      identificacao, 'Aventura|todos os luga|opções acima|todos os tipos|Escalada e trilhas'), 'Outras respostas', identificacao
+    ),
+    identificacao = fct_relevel(identificacao,
+      c('Escalada urbana', 'Escalada em áreas remotas', 'Escalada urbana e remota',
+        'Trilhas leves','Trilhas moderadas', 'Trilhas pesadas', 'Outras respostas')
+    )
+
+  )
+
+```
+
+Dos que responderam, o Guanabarino mais novo tem **`r min(df_fim$Qual.sua.idade.)`** anos e o menos novo **`r max(df_fim$Qual.sua.idade.)`**, sendo **`r round(mean(df_fim$Qual.sua.idade.))`** a média de idade dos respondentes.
+
+
+```{r}
+#| echo: false
+df_fim |>
+   select(Idade, `Tempo de clube`) |>
+  gtsummary::tbl_summary() |> 
+  gtsummary::bold_labels() |> 
+  gtsummary::modify_header(label = '**Características**') |> 
+  gtsummary::as_flex_table() 
+
+```
+
+\newpage
+
+
+```{r}
+#| echo: false
+df_fim |>
+   select(CBM, Frequência) |>
+  gtsummary::tbl_summary(
+    label = list(
+      CBM = 'Fez CBM',
+      Frequência = "Frequencia nas reuniões sociais"
+    )
+  ) |> 
+  gtsummary::bold_labels() |> 
+  gtsummary::modify_header(label = '**Características**') |> 
+  gtsummary::as_flex_table() 
+```
+
+### Relação entre a frequência nas reuniões sociais de quinta-feira no clube e o tempo que ingressou como sócio
+
+```{r}
+#| echo: false
+#| fig-align: right
+
+df_fim |>
+   mutate(
+   `Tempo de clube`= case_when(
+     `Tempo de clube` == '< 2 anos' ~ '< 5 anos',
+     `Tempo de clube` == 'Entre 2 e 5 anos'~ '< 5 anos',
+     `Tempo de clube` =='Entre 5 e 10 anos' ~ 'Entre 5 e 10 anos',
+     `Tempo de clube` =='> 20 anos'  ~  '> 10 anos',
+     `Tempo de clube` == 'Entre 10 e 20 anos' ~  '> 10 anos'
+   ),
+   `Tempo de clube` = fct_relevel(`Tempo de clube`,
+                                  c('< 5 anos', 'Entre 5 e 10 anos','> 10 anos' ))
+   )|>
+   ggplot(aes(Frequência, fill = `Tempo de clube`))+
+   geom_bar(position = 'dodge')+
+   labs(
+     y = 'Número de respondentes'
+   )+
+   scale_y_continuous(breaks = seq(0, 16, by=2))+
+   theme(panel.background = element_blank(),axis.text.x = element_text(angle = 60, hjust = 1),
+         axis.line = element_line('black'))
+
+
+```
+
+
+### Atividade com a qual o montanhista mais se identifica
+
+```{r}
+#| echo: false
+#| fig-align: center
+
+ df_fim %>%
+   ggplot(aes(identificacao))+
+   geom_bar(fill = '#00B898')+
+   # theme_classic()+
+   labs(
+     y = 'Número de respondentes',
+     x = 'Identidade com a montanha'
+       )+
+   # coord_flip()+
+   scale_y_continuous(breaks = seq(0, 16, by=2))+
+   theme(panel.background = element_blank(),axis.text.x = element_text(angle = 35, hjust = 1),
+         axis.line = element_line('black'))
+```
+
+
+### Quantas vezes escala por mês
+
+
+```{r}
+#| echo: false
+df_fim |> 
+  ggplot(aes(Quantas.vezes.você.escala.por.mês..em.média.))+
+  geom_bar(fill = '#2B3898')+
+  scale_x_continuous(breaks = seq(0, 16, by=2))+
+  scale_y_continuous(breaks = seq(0, 20, by=2))+
+  labs(
+    x = 'Quantas vezes escala por mês',
+    y = 'Número de pessoas'
+  ) 
+
+```
+### Quantas vezes caminha por mês
+
+```{r}
+#| echo: false
+df_fim |> 
+  ggplot(aes(Quantas.vezes.você.pratica.caminhada.em.montanha.por.mês..em.média.))+
+  geom_bar(fill = '#20639B')+
+  scale_x_continuous(breaks = seq(0, 16, by=2))+
+  scale_y_continuous(breaks = seq(0, 20, by=2))+
+  labs(
+    x = 'Quantas vezes caminha por mês',
+    y = 'Número de pessoas'
+  )
+
+```
+
+## Motivos para não frequentar as reuniões sociais do CEG
+
+Vários motivos foram apontados pelos respondentes para não frequentar as reuniões sociais.
+
+Eu preferi organizar por tipo de motivo, de acordo com a resposta. 
+
+```{r}
+#| echo: false
+
+df_fim |> 
+  reframe(
+    Distância = str_count(n_frequenta,
+                          'Moro longe|fora do p'),
+    Trabalho = str_count(n_frequenta,
+                         "Trabalho|trabalho"),
+    `Compromissos no horário` = str_count(n_frequenta,
+                                          "Compromissos"),
+    Preguiça = str_count(n_frequenta,
+                         "Preguiça"),
+    `Só tem bebum` = str_count(n_frequenta,
+                               "Só tem be"),
+    `Só tem chato` = str_count(n_frequenta,
+                               "chato"),
+    `Não vendem mais Heineken` = str_count(n_frequenta,
+                                           "Heinek"),
+    Família = str_count(n_frequenta,
+                        "Família|Familia|família|familia|crian|Patern|patern|Materni|matern|filh|
+                        filh")
+  ) |> 
+  reframe(
+    Distância = sum(Distância),
+    Trabalho = sum(Trabalho),
+    Preguiça = sum(Preguiça),
+    `Compromissos no horário` = sum(`Compromissos no horário`),
+    `Só tem bebum` = sum(`Só tem bebum`),
+    `Só tem chato` = sum(`Só tem chato`),
+    `Não vendem mais Heineken` = sum(`Não vendem mais Heineken`),
+    Família = sum(Família)
+                             
+  ) |> 
+  as_tibble(column_name = 'Respostas') %>%
+  pivot_longer(
+    cols = everything(),
+    values_to = 'Respostas',
+    names_to = 'Motivo'
+  ) %>%
+  arrange(desc(Respostas)) |>
+  xtable::xtable() |>
+  flextable::as_flextable(include.rownames=FALSE) |>
+  flextable::theme_booktabs()
+  
+  
+
+```
+
+## Diga um motivo para escolher o CEG
+
+Seguindo a mesma linha de análise da pergunta anterior, agrupei por palavras chaves.
+
+As palavras mais citadas pelos que responderam:
+
+```{r}
+#| echo: false
+
+df_fim %>%
+  rename( key =Diga.um.motivo.para.você.escolher.o.CEG.como.seu.clube.preferencial..caso.isso.seja.verdade.
+  ) %>%
+  reframe(
+    Amizade = str_count(key, 'amig|Amig|amiz|Amiz|Amor|amor|Amo|Coração|coração|CORAÇÃO'),
+    Pessoas = str_count(key, 'pesso|Pess|Grupo|grupo'),
+    `Aspectos técnicos` = str_count(key, 'Técn|Tecn|tecn|técn|Capaci|capaci|guia|Guia|CBM|cbm|étic|Étic'),
+    Acolhimento = str_count(key, 'Acolh|acolh|acolhi|empatia|Empatia|companhe|Companhe|recep|Recep'),
+    `Identidade com o clube` = str_count(key, 'ident|Ident|afinid|Afinida|Hist|hist'),
+    # CBM = str_count(key, 'CBM|cbm'),
+   `Animação` = str_count(key, 'Anima|anima|alto|Alto|fest|Fest|Brincad|brincad'),
+    `Ambiente familiar/descontraído` = str_count(key, 'Ambie|ambie|famil|Famil|famíl|Famíl|Descont|descont'),
+   # `Reuniões` = str_count(key, 'Reun|reun|reu|Reu')
+  ) %>%
+  reframe(
+  Amizade = sum(Amizade),
+  Pessoas = sum(Pessoas),
+  `Aspectos técnicos` = sum (`Aspectos técnicos`),
+  Acolhimento =sum(Acolhimento),
+  `Identidade com o clube`= sum(`Identidade com o clube`),
+  # CBM = sum(CBM),
+  `Animação` = sum(`Animação`),
+  `Ambiente familiar/descontraído` = sum(`Ambiente familiar/descontraído`),
+  # `Reuniões` = sum(`Reuniões`)
+) %>%
+  as_tibble(column_name = 'Respostas') %>%
+  pivot_longer(
+    cols = everything(),
+    values_to = 'Respostas',
+    names_to = 'Palavras'
+  ) %>%
+  arrange(desc(Respostas)) |>
+  xtable::xtable() |>
+  flextable::as_flextable(include.rownames=FALSE) |>
+  flextable::theme_booktabs()
+
+
+```
+
+
+### Alguns exemplos de respostas...
+
+* "animação e o alto astral."
+* "clube em que eu comecei no montanhismo"
+* "Não me imagino em outro clube"
+* "O espírito CEG de ser"
+* "...essa energia festeira..."
+* "...grupo alegre, festivo, cachaceiro..."
+* "É O CLUBE DO MEU CORAÇÃO"
+* "Acolhimento e técnica"
+* "...pela capacitação e seriedade de cada um dos guias."
+* "...clima de harmonia e descontração..."
+* "...me sinto bem no grupo como um todo!"*
+
+
+### Motivos absurdos citados
+
+* "Amo o Leleco " 
+
+
+
+**Pesquisa e análise por Ricardo J. Souza. (Ricardim)**
+
+
+
+
+
+
+
